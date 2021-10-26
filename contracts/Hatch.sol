@@ -121,8 +121,8 @@ contract Hatch is EtherTokenConstant, IsContract, AragonApp, IACLOracle {
         require(_maxGoal >= _minGoal,                                               ERROR_INVALID_MAX_GOAL);
         require(_period > 0,                                                        ERROR_INVALID_TIME_PERIOD);
         require(_exchangeRate > 0,                                                  ERROR_INVALID_EXCHANGE_RATE);
-        require(_vestingCliffPeriod > _period,                                      ERROR_INVALID_TIME_PERIOD);
-        require(_vestingCompletePeriod > _vestingCliffPeriod,                       ERROR_INVALID_TIME_PERIOD);
+        require(_vestingCliffPeriod >= _period,                                     ERROR_INVALID_TIME_PERIOD);
+        require(_vestingCompletePeriod >= _vestingCliffPeriod,                      ERROR_INVALID_TIME_PERIOD);
         require(_supplyOfferedPct > 0 && _supplyOfferedPct <= PPM,                  ERROR_INVALID_PCT);
         require(_fundingForBeneficiaryPct >= 0 && _fundingForBeneficiaryPct <= PPM, ERROR_INVALID_PCT);
 

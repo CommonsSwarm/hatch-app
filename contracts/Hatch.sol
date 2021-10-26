@@ -250,6 +250,13 @@ contract Hatch is EtherTokenConstant, IsContract, AragonApp, IACLOracle {
         return vestingCompleteDate != 0 && getTimestamp64() >= vestingCompleteDate;
     }
 
+    /**
+    * @dev Turns off fund recovery for contribution token when the hatch is ongoing
+    */
+    function allowRecoverability(address _token) public view isInitialized returns (bool) {
+        return _token != contributionToken || state() == State.Pending || state() == State.Closed;
+    }
+
     /***** internal functions *****/
 
     function _timeSinceOpen() internal view returns (uint64) {

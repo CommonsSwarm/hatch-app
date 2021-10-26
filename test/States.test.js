@@ -1,6 +1,6 @@
 const { HATCH_PERIOD, HATCH_MAX_GOAL, HATCH_STATE, HATCH_MIN_GOAL } = require('./helpers/constants')
 const { prepareDefaultSetup, defaultDeployParams, initializeHatch } = require('./common/deploy')
-const { now } = require('./common/utils')
+const { now, tokenExchangeRate } = require('./common/utils')
 
 const getState = async test => {
   return (await test.hatch.state()).toNumber()
@@ -21,6 +21,10 @@ contract('Hatch, states validation', ([anyone, appManager, buyer]) => {
         assert.equal(await getState(this), HATCH_STATE.PENDING)
       })
 
+      it('It can escape hatch', async() => {
+        assert.isTrue(await this.hatch.allowRecoverability(this.contributionToken.address));
+      })
+
       describe('When the sale is started', () => {
         before(async () => {
           if (startDate == 0) {
@@ -32,6 +36,10 @@ contract('Hatch, states validation', ([anyone, appManager, buyer]) => {
 
         it('The state is Funding', async () => {
           assert.equal(await getState(this), HATCH_STATE.FUNDING)
+        })
+
+        it('It cannot escape hatch', async() => {
+          assert.isFalse(await this.hatch.allowRecoverability(this.contributionToken.address));
         })
 
         describe('When the funding period is still running', () => {
@@ -59,6 +67,10 @@ contract('Hatch, states validation', ([anyone, appManager, buyer]) => {
 
               it('The state is Refunding', async () => {
                 assert.equal(await getState(this), HATCH_STATE.REFUNDING)
+              })
+
+              it('It cannot escape hatch', async() => {
+                assert.isFalse(await this.hatch.allowRecoverability(this.contributionToken.address));
               })
             })
           })
@@ -111,6 +123,10 @@ contract('Hatch, states validation', ([anyone, appManager, buyer]) => {
 
               it('The state is Closed', async () => {
                 assert.equal(await getState(this), HATCH_STATE.CLOSED)
+              })
+
+              it('It can escape hatch', async() => {
+                assert.isTrue(await this.hatch.allowRecoverability(this.contributionToken.address));
               })
             })
           })

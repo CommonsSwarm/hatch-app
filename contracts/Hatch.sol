@@ -38,8 +38,6 @@ contract Hatch is EtherTokenConstant, IsContract, AragonApp, IACLOracle {
     string private constant ERROR_INVALID_PCT              = "HATCH_INVALID_PCT";
     string private constant ERROR_INVALID_STATE            = "HATCH_INVALID_STATE";
     string private constant ERROR_INVALID_CONTRIBUTE_VALUE = "HATCH_INVALID_CONTRIBUTE_VALUE";
-    string private constant ERROR_INSUFFICIENT_BALANCE     = "HATCH_INSUFFICIENT_BALANCE";
-    string private constant ERROR_INSUFFICIENT_ALLOWANCE   = "HATCH_INSUFFICIENT_ALLOWANCE";
     string private constant ERROR_NOTHING_TO_REFUND        = "HATCH_NOTHING_TO_REFUND";
     string private constant ERROR_TOKEN_TRANSFER_REVERTED  = "HATCH_TOKEN_TRANSFER_REVERTED";
 
@@ -59,13 +57,13 @@ contract Hatch is EtherTokenConstant, IsContract, AragonApp, IACLOracle {
 
     uint256                                         public minGoal;
     uint256                                         public maxGoal;
-    uint64                                          public period;
     uint256                                         public exchangeRate;
+    uint64                                          public period;
     uint64                                          public vestingCliffPeriod;
     uint64                                          public vestingCompletePeriod;
+    uint64                                          public openDate;
     uint256                                         public supplyOfferedPct;
     uint256                                         public fundingForBeneficiaryPct;
-    uint64                                          public openDate;
 
     bool                                            public isClosed;
     uint64                                          public vestingCliffDate;
@@ -123,8 +121,8 @@ contract Hatch is EtherTokenConstant, IsContract, AragonApp, IACLOracle {
         require(_maxGoal >= _minGoal,                                               ERROR_INVALID_MAX_GOAL);
         require(_period > 0,                                                        ERROR_INVALID_TIME_PERIOD);
         require(_exchangeRate > 0,                                                  ERROR_INVALID_EXCHANGE_RATE);
-        require(_vestingCliffPeriod > _period,                                      ERROR_INVALID_TIME_PERIOD);
-        require(_vestingCompletePeriod > _vestingCliffPeriod,                       ERROR_INVALID_TIME_PERIOD);
+        require(_vestingCliffPeriod >= _period,                                     ERROR_INVALID_TIME_PERIOD);
+        require(_vestingCompletePeriod >= _vestingCliffPeriod,                      ERROR_INVALID_TIME_PERIOD);
         require(_supplyOfferedPct > 0 && _supplyOfferedPct <= PPM,                  ERROR_INVALID_PCT);
         require(_fundingForBeneficiaryPct >= 0 && _fundingForBeneficiaryPct <= PPM, ERROR_INVALID_PCT);
 
@@ -250,6 +248,13 @@ contract Hatch is EtherTokenConstant, IsContract, AragonApp, IACLOracle {
         return vestingCompleteDate != 0 && getTimestamp64() >= vestingCompleteDate;
     }
 
+    /**
+    * @dev Turns off fund recovery for contribution token when the hatch is ongoing
+    */
+    function allowRecoverability(address _token) public view isInitialized returns (bool) {
+        return _token != contributionToken || state() == State.Pending || state() == State.Closed;
+    }
+
     /***** internal functions *****/
 
     function _timeSinceOpen() internal view returns (uint64) {
@@ -281,13 +286,11 @@ contract Hatch is EtherTokenConstant, IsContract, AragonApp, IACLOracle {
     function _contribute(address _contributor, uint256 _value) internal {
         uint256 value = totalRaised.add(_value) > maxGoal ? maxGoal.sub(totalRaised) : _value;
         if (contributionToken == ETH && _value > value) {
-            msg.sender.transfer(_value.sub(value));
+            msg.sender.call.value(_value.sub(value));
         }
 
         // (contributor) ~~~> contribution tokens ~~~> (hatch)
         if (contributionToken != ETH) {
-            require(ERC20(contributionToken).balanceOf(_contributor) >= value,                ERROR_INSUFFICIENT_BALANCE);
-            require(ERC20(contributionToken).allowance(_contributor, address(this)) >= value, ERROR_INSUFFICIENT_ALLOWANCE);
             _transfer(contributionToken, _contributor, address(this), value);
         }
         // (mint ✨) ~~~> project tokens ~~~> (contributor)
@@ -362,7 +365,7 @@ contract Hatch is EtherTokenConstant, IsContract, AragonApp, IACLOracle {
         if (_token == ETH) {
             require(_from == address(this), ERROR_TOKEN_TRANSFER_REVERTED);
             require(_to != address(this),   ERROR_TOKEN_TRANSFER_REVERTED);
-            _to.transfer(_amount);
+            _to.call.value(_amount);
         } else {
             if (_from == address(this)) {
                 require(ERC20(_token).safeTransfer(_to, _amount), ERROR_TOKEN_TRANSFER_REVERTED);

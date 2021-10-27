@@ -30,7 +30,7 @@
   ],
   "dependencies": {
     "@aragon/apps-token-manager": "^2.1.0",
-    "@aragon/os": "4.2.1"
+    "@aragon/os": "^4.4.0"
   },
   "devDependencies": {
     "@aragon/minime": "^1.0.0",
